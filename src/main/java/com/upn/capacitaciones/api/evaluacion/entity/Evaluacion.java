@@ -1,7 +1,10 @@
-package com.upn.capacitaciones.api.capacitacion.entity;
+package com.upn.capacitaciones.api.evaluacion.entity;
 
+import com.upn.capacitaciones.api.capacitacion.entity.Capacitacion;
+import com.upn.capacitaciones.api.perfil.entity.Perfil;
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -18,12 +21,10 @@ public class Evaluacion {
     @Column(name = "evaluacion_id")
     private Long evaluacionId;
 
-    // RELACIÓN 1: Muchas evaluaciones pertenecen a 1 Capacitación
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "capacitacion_id", nullable = false)
     private Capacitacion capacitacion;
 
-    // RELACIÓN 2: Muchas evaluaciones son rendidas por 1 Alumno (Perfil)
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "alumno_id", nullable = false)
     private Perfil alumno;

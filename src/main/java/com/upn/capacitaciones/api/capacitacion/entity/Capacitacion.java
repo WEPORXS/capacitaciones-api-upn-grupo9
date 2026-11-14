@@ -1,5 +1,7 @@
 package com.upn.capacitaciones.api.capacitacion.entity;
 
+import com.upn.capacitaciones.api.perfil.entity.Perfil;
+import com.upn.capacitaciones.api.pregunta.entity.Pregunta;
 import jakarta.persistence.*;
 import lombok.*;
 import java.util.List;

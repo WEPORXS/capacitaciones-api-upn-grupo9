@@ -1,5 +1,6 @@
-package com.upn.capacitaciones.api.capacitacion.entity;
+package com.upn.capacitaciones.api.pregunta.entity;
 
+import com.upn.capacitaciones.api.capacitacion.entity.Capacitacion;
 import jakarta.persistence.*;
 import lombok.*;
 

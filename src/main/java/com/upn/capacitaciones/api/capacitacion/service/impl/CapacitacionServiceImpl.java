@@ -3,9 +3,13 @@ package com.upn.capacitaciones.api.capacitacion.service.impl;
 import com.upn.capacitaciones.api.capacitacion.dto.CapacitacionRequest;
 import com.upn.capacitaciones.api.capacitacion.dto.CapacitacionResponse;
 import com.upn.capacitaciones.api.capacitacion.entity.Capacitacion;
+import com.upn.capacitaciones.api.perfil.entity.Perfil;
 import com.upn.capacitaciones.api.capacitacion.repository.CapacitacionRepository;
+import com.upn.capacitaciones.api.perfil.repository.PerfilRepository;
 import com.upn.capacitaciones.api.capacitacion.service.CapacitacionService;
+import com.upn.capacitaciones.api.common.exception.DuplicateResourceException;
 import com.upn.capacitaciones.api.common.exception.ResourceNotFoundException;
+import com.upn.capacitaciones.api.common.security.CurrentUserContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,12 +21,14 @@ import java.util.List;
 public class CapacitacionServiceImpl implements CapacitacionService {
 
     private final CapacitacionRepository capacitacionRepository;
+    private final PerfilRepository perfilRepository;
+    private final CurrentUserContext currentUserContext;
 
     @Override
     @Transactional(readOnly = true)
     public List<CapacitacionResponse> listar() {
-        return capacitacionRepository.findAll()
-                .stream()
+        return capacitacionRepository.findAll().stream()
+                .filter(c -> Boolean.TRUE.equals(c.getActivo()))
                 .map(this::toResponse)
                 .toList();
     }
@@ -30,53 +36,56 @@ public class CapacitacionServiceImpl implements CapacitacionService {
     @Override
     @Transactional(readOnly = true)
     public CapacitacionResponse obtenerPorId(Long id) {
-        return toResponse(buscarEntidad(id));
+        Capacitacion cap = capacitacionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Capacitación no encontrada con ID: " + id));
+        return toResponse(cap);
     }
 
     @Override
     @Transactional
     public CapacitacionResponse crear(CapacitacionRequest request) {
-        Capacitacion entidad = Capacitacion.builder()
-                .codigo(request.getCodigo().trim())
-                .titulo(request.getTitulo().trim())
-                .temaPrompt(request.getTemaPrompt().trim())
-                .nivel(request.getNivel().trim().toUpperCase())
-                .estado(request.getEstado() != null ? request.getEstado().trim().toUpperCase() : "BORRADOR")
-                .notaMinima(request.getNotaMinima())
-                .activo(request.getActivo())
-                .build();
+        if (capacitacionRepository.existsByCodigoIgnoreCase(request.getCodigo())) {
+            throw new DuplicateResourceException("Ya existe una capacitación con el código: " + request.getCodigo());
+        }
 
+        Perfil creador = perfilRepository.findById(currentUserContext.getPerfilId())
+                .orElseThrow(() -> new ResourceNotFoundException("Perfil creador no encontrado"));
+
+        Capacitacion entidad = Capacitacion.builder()
+                .codigo(request.getCodigo().toUpperCase())
+                .titulo(request.getTitulo())
+                .temaPrompt(request.getTemaPrompt())
+                .nivel(request.getNivel())
+                .estado(request.getEstado() != null ? request.getEstado() : "BORRADOR")
+                .notaMinima(request.getNotaMinima())
+                .activo(request.getActivo() != null ? request.getActivo() : true)
+                .creador(creador)
+                .build();
         return toResponse(capacitacionRepository.save(entidad));
     }
 
     @Override
     @Transactional
     public CapacitacionResponse actualizar(Long id, CapacitacionRequest request) {
-        Capacitacion entidad = buscarEntidad(id);
-        entidad.setCodigo(request.getCodigo().trim());
-        entidad.setTitulo(request.getTitulo().trim());
-        entidad.setTemaPrompt(request.getTemaPrompt().trim());
-        entidad.setNivel(request.getNivel().trim().toUpperCase());
-        if (request.getEstado() != null) {
-            entidad.setEstado(request.getEstado().trim().toUpperCase());
-        }
-        entidad.setNotaMinima(request.getNotaMinima());
-        entidad.setActivo(request.getActivo());
-
-        return toResponse(capacitacionRepository.save(entidad));
+        Capacitacion cap = capacitacionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Capacitación no encontrada con ID: " + id));
+        cap.setCodigo(request.getCodigo().toUpperCase());
+        cap.setTitulo(request.getTitulo());
+        cap.setTemaPrompt(request.getTemaPrompt());
+        cap.setNivel(request.getNivel());
+        cap.setEstado(request.getEstado());
+        cap.setNotaMinima(request.getNotaMinima());
+        cap.setActivo(request.getActivo());
+        return toResponse(capacitacionRepository.save(cap));
     }
 
     @Override
     @Transactional
     public void eliminar(Long id) {
-        Capacitacion entidad = buscarEntidad(id);
-        entidad.setActivo(false);
-        capacitacionRepository.save(entidad);
-    }
-
-    private Capacitacion buscarEntidad(Long id) {
-        return capacitacionRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("No existe la capacitación con id " + id));
+        Capacitacion cap = capacitacionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Capacitación no encontrada con ID: " + id));
+        cap.setActivo(false); // Baja lógica preservando integridad referencial
+        capacitacionRepository.save(cap);
     }
 
     private CapacitacionResponse toResponse(Capacitacion c) {
